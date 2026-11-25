@@ -326,6 +326,7 @@ pub async fn check_balance(coin: &str, address: &str, config: &AppConfig) -> Res
     let http = client(config, proxy)?;
     let mut last_error = "no endpoints configured".to_string();
     let mut confirmations: Vec<(&'static str, u64, u64)> = Vec::new();
+    let mut any_response = false;
 
     for endpoint in endpoints(coin, address) {
         if is_quarantined(coin, endpoint.name) {
@@ -357,20 +358,29 @@ pub async fn check_balance(coin: &str, address: &str, config: &AppConfig) -> Res
             Err(e) => Err(e.to_string()),
         };
         match result {
-            Ok(json) => match parse_balance(endpoint.parser, address, &json) {
-                Some((balance, received)) => {
-                    record(coin, endpoint.name, true, "");
-                    confirmations.push((endpoint.name, balance, received));
-                    if confirmations.len() >= 2 {
-                        break;
+            Ok(json) => {
+                any_response = true;
+                match parse_balance(endpoint.parser, address, &json) {
+                    Some((balance, received)) => {
+                        record(coin, endpoint.name, true, "");
+                        // Zero is definitive: unused addresses are the normal
+                        // case and must not be logged as API errors or trigger
+                        // the kill switch. Only positive balances need a second
+                        // independent confirmation before becoming a hit.
+                        if balance == 0 {
+                            return Ok((0, received));
+                        }
+                        confirmations.push((endpoint.name, balance, received));
+                        if confirmations.len() >= 2 {
+                            break;
+                        }
+                    }
+                    None => {
+                        // "account not found" / empty responses mean zero.
+                        record(coin, endpoint.name, true, "");
                     }
                 }
-                None => {
-                    // "account not found" / empty responses mean zero, not a hit.
-                    last_error = format!("{}: нет подтверждённого баланса", endpoint.name);
-                    record(coin, endpoint.name, true, "");
-                }
-            },
+            }
             Err(e) => {
                 last_error = format!("{}: {e}", endpoint.name);
                 record(coin, endpoint.name, false, &last_error);
@@ -378,10 +388,15 @@ pub async fn check_balance(coin: &str, address: &str, config: &AppConfig) -> Res
         }
     }
 
-    let (first_name, first_balance, first_received) = match confirmations.first().copied() {
-        Some(first) => first,
-        None => return Err(last_error),
-    };
+    if confirmations.is_empty() {
+        // Every reachable API answered, but none had a documented balance
+        // field: an unused address. Network failures are reported separately.
+        return if any_response { Ok((0, 0)) } else { Err(last_error) };
+    }
+    let (first_name, first_balance, first_received) = confirmations
+        .first()
+        .copied()
+        .expect("confirmations checked above");
     if confirmations.len() < 2 {
         return Err(format!(
             "{first_name}: баланс {first_balance} не подтверждён вторым API"

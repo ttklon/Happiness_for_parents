@@ -285,7 +285,7 @@ fn main() {
             // ordinary install looked like it never launched. Show the window
             // once after upgrading, then respect the user's own settings.
             if let Ok(marker) = config::data_dir(&handle)
-                .map(|dir| dir.join("visible-on-startup-v0.6.6"))
+                .map(|dir| dir.join("visible-on-startup-v0.6.7"))
             {
                 if !marker.exists() {
                     startup_log("первый запуск после обновления: окно будет видимым");
