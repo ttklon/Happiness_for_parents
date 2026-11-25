@@ -79,7 +79,14 @@ jobs:
 
       - name: Build MSI installer
         working-directory: src-tauri
-        run: cargo tauri build --target x86_64-pc-windows-msvc
+        run: |
+          cargo tauri build --target x86_64-pc-windows-msvc 2>&1 | Tee-Object -FilePath build.log
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content build.log | Where-Object { $_ -match 'error|failed|Error|not found|missing' } |
+              Select-Object -First 120 |
+              ForEach-Object { "::error::$($_.Replace('%','%25').Replace("`r",''))" }
+            exit 1
+          }
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
