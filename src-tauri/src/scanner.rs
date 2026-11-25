@@ -278,7 +278,7 @@ pub fn stop(state: SharedState) -> Result<String, String> {
 }
 
 async fn worker_loop(
-    worker_id: u32,
+    worker_id: usize,
     app: tauri::AppHandle,
     state: SharedState,
     config: AppConfig,

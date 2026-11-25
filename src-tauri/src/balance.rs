@@ -84,7 +84,7 @@ fn is_quarantined(coin: &str, name: &str) -> bool {
         .unwrap_or(false)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum Verb {
     Get,
     Post(String),

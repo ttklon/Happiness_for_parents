@@ -114,7 +114,7 @@ fn preview_candidates(config: AppConfig, count: Option<usize>) -> Result<Vec<(St
 
 #[tauri::command]
 fn set_window_visible(handle: tauri::AppHandle, visible: bool) -> Result<String, String> {
-    if let Some(window) = handle.get_window("main") {
+    if let Some(window) = handle.get_webview_window("main") {
         if visible {
             window.show().map_err(|e| e.to_string())?;
             window.set_focus().map_err(|e| e.to_string())?;
@@ -145,7 +145,7 @@ fn set_stealth_title(handle: tauri::AppHandle, enabled: bool) -> Result<String, 
     } else {
         "Happiness Scanner"
     };
-    if let Some(window) = handle.get_window("main") {
+    if let Some(window) = handle.get_webview_window("main") {
         window.set_title(title).map_err(|e| e.to_string())?;
     }
     Ok("ok".into())
@@ -189,15 +189,15 @@ fn main() {
                 .menu(&menu)
                 .tooltip("Happiness Scanner — фоновый поиск")
                 .menu_on_left_click(true)
-                .on_menu_event(move |app, event| match event.id().as_str() {
+                .on_menu_event(move |app, event| match event.id().0.as_str() {
                     "show" => {
-                        if let Some(window) = app.get_window("main") {
+                        if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
                             let _ = window.set_focus();
                         }
                     }
                     "hide" => {
-                        if let Some(window) = app.get_window("main") {
+                        if let Some(window) = app.get_webview_window("main") {
                             let _ = window.hide();
                         }
                     }
@@ -210,7 +210,7 @@ fn main() {
                 .build(app)?;
             let _tray = tray;
 
-            let window = app.get_window("main").expect("main window");
+            let window = app.get_webview_window("main").expect("main window");
             let window_clone = window.clone();
             window.on_window_event(move |event| {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
