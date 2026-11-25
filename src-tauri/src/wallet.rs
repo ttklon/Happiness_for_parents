@@ -496,7 +496,7 @@ mod tests {
         let key = derive_bip32(&seed, &[0x8000_0000]).unwrap();
         assert_eq!(
             hex_encode(&key),
-            "edb2e14f9ee77d26dd93b4ecede8d16ed408ce149b6cd80c0715df465bbb5d27"
+            "edb2e14f9ee77d26dd93b4ecede8d16ed408ce149b6cd80b0715a2d911a0afea"
         );
     }
 

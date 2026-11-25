@@ -65,7 +65,14 @@ jobs:
 
       - name: Crypto unit tests
         working-directory: src-tauri
-        run: cargo test
+        run: |
+          cargo test --message-format=short 2>&1 | Tee-Object -FilePath test.log
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content test.log | Where-Object { $_ -match 'error|FAILED|panicked|assertion|left:|right:' } |
+              Select-Object -First 100 |
+              ForEach-Object { "::error::$($_.Replace('%','%25').Replace("`r",''))" }
+            exit 1
+          }
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version '^2' --locked
