@@ -131,9 +131,6 @@ fn endpoints(coin: &str, address: &str) -> Vec<Endpoint> {
             add("blockchair", format!("https://api.blockchair.com/bitcoin/cash/dashboards/address/{address}"));
             add("blockstream", format!("https://bch.blockstream.info/api/address/{address}"));
         }
-        "TRX" => {
-            add("trongrid", format!("https://api.trongrid.io/v1/accounts/{address}"));
-        }
         "SOL" => {
             out.push(Endpoint {
                 name: "solana-rpc",

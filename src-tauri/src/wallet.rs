@@ -1,5 +1,5 @@
 //! Wallet generation primitives: BIP39 (8 wordlists), BIP32 derivation,
-//! Base58Check, Bech32/Bech32m, EVM/keccak addresses, TRON, Solana and TON.
+//! Base58Check, Bech32/Bech32m, EVM/keccak addresses, Solana and TON.
 //!
 //! No external Tauri dependency here — this module is pure crypto so it can be
 //! unit-tested independently.
@@ -338,7 +338,6 @@ pub fn coin_spec(ticker: &str) -> CoinSpec {
         "OPT" => CoinSpec { ticker: "OPT", name: "Optimism", coin_type: 614, family: Family::Evm, p2pkh: 0, p2sh: 0, hrp: "" },
         "BASE" => CoinSpec { ticker: "BASE", name: "Base", coin_type: 8453, family: Family::Evm, p2pkh: 0, p2sh: 0, hrp: "" },
         "AVAX" => CoinSpec { ticker: "AVAX", name: "Avalanche C-Chain", coin_type: 9005, family: Family::Evm, p2pkh: 0, p2sh: 0, hrp: "" },
-        "TRX" => CoinSpec { ticker: "TRX", name: "TRON", coin_type: 195, family: Family::Tron, p2pkh: 0x41, p2sh: 0, hrp: "" },
         "SOL" => CoinSpec { ticker: "SOL", name: "Solana", coin_type: 501, family: Family::Solana, p2pkh: 0, p2sh: 0, hrp: "" },
         "TON" => CoinSpec { ticker: "TON", name: "Toncoin", coin_type: 607, family: Family::Ton, p2pkh: 0, p2sh: 0, hrp: "" },
         _ => CoinSpec { ticker: "BTC", name: "Bitcoin", coin_type: 0, family: Family::Utxo, p2pkh: 0x00, p2sh: 0x05, hrp: "bc" },

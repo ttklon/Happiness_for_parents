@@ -1,6 +1,6 @@
 [package]
 name = "happiness-scanner"
-version = "0.6.3"
+version = "0.6.4"
 description = "Background multi-coin wallet scanner with full anonymity — Rust + Tauri"
 authors = ["Happiness Scanner"]
 edition = "2021"

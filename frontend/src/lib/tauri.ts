@@ -4,7 +4,7 @@
  * is used so the interface can be explored without the desktop shell.
  */
 
-export const COINS = ['BTC', 'ETH', 'LTC', 'DOGE', 'BCH', 'MATIC', 'BSC', 'ARB', 'OPT', 'BASE', 'AVAX', 'TRX', 'SOL', 'TON'];
+export const COINS = ['BTC', 'ETH', 'LTC', 'DOGE', 'BCH', 'MATIC', 'BSC', 'ARB', 'OPT', 'BASE', 'AVAX', 'SOL', 'TON'];
 
 export const MODES = [
   'ALL_COINS_AUTO', 'RANDOM', 'BRAIN_WALLET', 'BRAIN_COMBOS', 'MULTI_WORD_COMBO',
@@ -261,8 +261,8 @@ async function mockInvoke<T>(cmd: string, args: Record<string, unknown> = {}): P
     }
     case 'check_for_updates': return result({
       available: false,
-      version: '0.6.3',
-      current_version: '0.6.3',
+      version: '0.6.4',
+      current_version: '0.6.4',
       notes: '',
       url: '',
       asset_name: '',

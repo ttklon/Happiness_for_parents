@@ -6,7 +6,7 @@ use crate::results::HitRecord;
 fn format_units(coin: &str, amount: u64) -> String {
     let decimals: u32 = match coin {
         "ETH" | "MATIC" | "BSC" | "ARB" | "OPT" | "BASE" | "AVAX" | "BNB" => 18,
-        "TRX" | "SOL" | "TON" | "BCH" | "LTC" | "DOGE" | "BTC" => {
+        "SOL" | "TON" | "BCH" | "LTC" | "DOGE" | "BTC" => {
             if coin == "TON" { 9 } else { 8 }
         }
         _ => 8,

@@ -12,14 +12,14 @@
 ## Что реализовано
 
 ### Поиск
-- **14 монет**: BTC, ETH, LTC, DOGE, BCH, MATIC, BSC, ARB, OPT, BASE, AVAX, TRX, SOL, TON.
+- **13 монет**: BTC, ETH, LTC, DOGE, BCH, MATIC, BSC, ARB, OPT, BASE, AVAX, SOL, TON.
 - **15 режимов**: `ALL_COINS_AUTO`, `RANDOM`, `BRAIN_WALLET`, `BRAIN_COMBOS`,
   `MULTI_WORD_COMBO`, `BIP39_PASSPHRASE`, `TARGET_ADDRESSES`, `MULTI_COIN_BRAIN`,
   `TRANSACTION_HISTORY`, `BLOOM_FILTER`, `VANITY_PATTERN`, `SEQUENTIAL_KEYS`,
   `RICH_LIST`, `PUZZLE`, `DICTIONARY`. `ALL_COINS_AUTO` сам циклически перебирает
   все монеты × все режимы и работает бесконечно.
 - **Адреса**: P2PKH, P2SH-P2WPKH, P2WPKH (bech32), P2TR (bech32m/taproot),
-  EVM `0x…` (keccak256), TRON (base58check 0x41), Solana (ed25519 base58), TON (EQ…).
+  EVM `0x…` (keccak256), Solana (ed25519 base58), TON (EQ…). TRON отключён: ошибки в определении баланса.
 - **8 языков BIP39** с полноценными списками по 2048 слов (английский, испанский,
   французский, итальянский, японский, корейский, упрощённый и традиционный китайский).
 - **BIP32/BIP44/49/84/86** деривация (`m/purpose'/coin'/0'/0/0`), PBKDF2-HMAC-SHA512.
@@ -142,7 +142,7 @@ npm run dev
 
 ## Если приложение не открывается
 
-Начиная с v0.6.3 первое после обновления окно показывается всегда: старые версии
+Начиная с v0.6.4 первое после обновления окно показывается всегда: старые версии
 запускали его скрытым в трей и с маской названия `System Host Process`, из-за чего
 создавалось впечатление, что программа не стартовала.
 
