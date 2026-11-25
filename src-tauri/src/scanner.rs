@@ -1,6 +1,6 @@
 //! Infinite, never-repeating background scan engine.
 
-use rand::Rng;
+use rand::{Rng, SeedableRng};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -295,8 +295,8 @@ async fn worker_loop(
             break;
         }
 
-        // ThreadRng is !Send, so keep it inside this loop (never across an await).
-        let mut rng = rand::thread_rng();
+        // StdRng is Send, unlike ThreadRng, so the worker future can cross awaits.
+        let mut rng = rand::rngs::StdRng::from_entropy();
         let mut batch: Vec<Candidate> = Vec::with_capacity(config.batch_size);
         let mut attempts = 0usize;
         while batch.len() < config.batch_size && attempts < config.batch_size * 20 {

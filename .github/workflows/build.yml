@@ -57,7 +57,7 @@ jobs:
         run: |
           cargo check --message-format=short 2>&1 | Tee-Object -FilePath check.log
           if ($LASTEXITCODE -ne 0) {
-            Get-Content check.log | Where-Object { $_ -match 'error' } |
+            Get-Content check.log | Where-Object { $_ -match 'error|note:|within|held across|not Send' } |
               Select-Object -First 150 |
               ForEach-Object { "::error::$($_.Replace('%','%25').Replace("`r",''))" }
             exit 1
