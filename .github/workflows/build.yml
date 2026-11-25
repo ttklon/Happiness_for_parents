@@ -54,7 +54,14 @@ jobs:
 
       - name: Cargo check
         working-directory: src-tauri
-        run: cargo check
+        run: |
+          cargo check --message-format=short 2>&1 | Tee-Object -FilePath check.log
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content check.log | Where-Object { $_ -match 'error' } |
+              Select-Object -First 150 |
+              ForEach-Object { "::error::$($_.Replace('%','%25').Replace("`r",''))" }
+            exit 1
+          }
 
       - name: Crypto unit tests
         working-directory: src-tauri
