@@ -4,9 +4,9 @@
   "version": "0.6.0",
   "identifier": "com.happiness.scanner",
   "build": {
-    "beforeDevCommand": "npm --prefix ../frontend run dev",
+    "beforeDevCommand": "cd ../frontend && npm run dev",
     "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": "npm --prefix ../frontend run build",
+    "beforeBuildCommand": "cd ../frontend && npm run build",
     "frontendDist": "../frontend/dist"
   },
   "app": {
@@ -39,8 +39,13 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["msi"],
-    "icon": ["icons/icon.ico", "icons/icon.png"],
+    "targets": [
+      "msi"
+    ],
+    "icon": [
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
     "copyright": "Copyright © 2026 Happiness Scanner",
     "category": "Utility",
     "shortDescription": "Фоновый поиск кошельков с полной анонимностью",
