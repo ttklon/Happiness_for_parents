@@ -247,7 +247,11 @@ fn main() {
         std::env::args().collect::<Vec<_>>()
     ));
     let result = tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::default().build())
+        .plugin(
+            tauri_plugin_log::Builder::default()
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .manage(Arc::new(AppState::default()))
         .invoke_handler(tauri::generate_handler![
             get_stats,
@@ -281,7 +285,7 @@ fn main() {
             // ordinary install looked like it never launched. Show the window
             // once after upgrading, then respect the user's own settings.
             if let Ok(marker) = config::data_dir(&handle)
-                .map(|dir| dir.join("visible-on-startup-v0.6.2"))
+                .map(|dir| dir.join("visible-on-startup-v0.6.3"))
             {
                 if !marker.exists() {
                     startup_log("первый запуск после обновления: окно будет видимым");
@@ -364,8 +368,8 @@ fn main() {
         startup_log(&format!("ФАТАЛЬНАЯ ОШИБКА: {err}"));
         show_startup_error(&format!(
             "Не удалось запустить Happiness Scanner.\n\n{err}\n\n\
-            Частая причина — отсутствующий Microsoft Edge WebView2 Runtime.\n\
-            Установите его: https://aka.ms/webview2\n\n\
+            Если в тексте ошибки нет указания на конкретный файл, проверьте\
+            Microsoft Edge WebView2 Runtime: https://aka.ms/webview2\n\n\
             Подробности: {}",
             diagnostic_file().display()
         ));

@@ -307,7 +307,7 @@ export default function Settings({ config, setConfig }: Props) {
             <Toggle checked={config.update_check_enabled} onChange={(v) => patch({ update_check_enabled: v })} />
           </Row>
           <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-3 text-[11px] text-slate-400">
-            <div>Текущая версия: <span className="text-emerald-300">{updateInfo?.current_version ?? '0.6.2'}</span></div>
+            <div>Текущая версия: <span className="text-emerald-300">{updateInfo?.current_version ?? '0.6.3'}</span></div>
             <div>Доступна: <span className={updateInfo?.available ? 'text-emerald-300' : 'text-slate-400'}>{updateInfo ? (updateInfo.available ? updateInfo.version : 'актуальная') : 'не проверялась'}</span></div>
             {updateInfo?.asset_name && <div className="mono mt-1 text-slate-500">{updateInfo.asset_name} · {(updateInfo.size / 1024 / 1024).toFixed(1)} МБ</div>}
             {updateInfo?.notes && <div className="mt-2 whitespace-pre-wrap text-slate-500">{updateInfo.notes.slice(0, 500)}</div>}
