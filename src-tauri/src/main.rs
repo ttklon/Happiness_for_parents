@@ -103,14 +103,25 @@ async fn test_api(config: AppConfig) -> Result<String, String> {
     balance::probe(&config.normalized()).await
 }
 
-#[tauri::command]
-async fn check_for_updates() -> Result<updater::UpdateInfo, String> {
-    updater::check().await
+fn updater_proxy(state: &State<'_, Arc<AppState>>) -> Result<Option<String>, String> {
+    let cfg = state.config.lock().map_err(|e| e.to_string())?;
+    if cfg.block_direct_connection && cfg.proxy().is_none() {
+        return Err("Блок прямого соединения: настройте Tor или прокси перед проверкой обновлений".into());
+    }
+    Ok(cfg.proxy())
 }
 
 #[tauri::command]
-async fn install_update(info: updater::UpdateInfo) -> Result<String, String> {
-    updater::download_and_install(&info).await
+async fn check_for_updates(state: State<'_, Arc<AppState>>) -> Result<updater::UpdateInfo, String> {
+    updater::check(updater_proxy(&state)?).await
+}
+
+#[tauri::command]
+async fn install_update(
+    state: State<'_, Arc<AppState>>,
+    info: updater::UpdateInfo,
+) -> Result<String, String> {
+    updater::download_and_install(&info, updater_proxy(&state)?).await
 }
 
 #[tauri::command]

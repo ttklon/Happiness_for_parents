@@ -82,7 +82,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   full_anonymity_mode: true,
   anonymity_mode: true,
   use_tor: false,
-  tor_proxy: 'http://127.0.0.1:9050',
+  tor_proxy: 'socks5h://127.0.0.1:9050',
   proxy_url: '',
   proxy_list: '',
   proxy_rotation: false,

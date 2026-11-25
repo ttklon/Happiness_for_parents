@@ -121,7 +121,7 @@ impl Default for AppConfig {
             full_anonymity_mode: true,
             anonymity_mode: true,
             use_tor: false,
-            tor_proxy: "http://127.0.0.1:9050".to_string(),
+            tor_proxy: "socks5h://127.0.0.1:9050".to_string(),
             proxy_url: String::new(),
             proxy_list: String::new(),
             proxy_rotation: false,
@@ -151,6 +151,11 @@ impl AppConfig {
         self.delay_ms = self.delay_ms.min(600_000);
         self.kill_switch_threshold = self.kill_switch_threshold.clamp(1, 1000);
         self.address_cache_ttl_minutes = self.address_cache_ttl_minutes.clamp(1, 100_800);
+        // socks5h resolves DNS at the proxy: without this, Tor users leak
+        // every API hostname to their local/ISP resolver.
+        if self.tor_proxy.contains("9050") && !self.tor_proxy.starts_with("socks5h://") {
+            self.tor_proxy = "socks5h://127.0.0.1:9050".to_string();
+        }
         self.jitter_min_ms = self.jitter_min_ms.min(60_000);
         self.jitter_max_ms = self.jitter_max_ms.clamp(self.jitter_min_ms, 60_000);
 

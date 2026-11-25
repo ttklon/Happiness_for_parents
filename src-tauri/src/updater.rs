@@ -40,12 +40,16 @@ fn version_newer(candidate: &str, current: &str) -> bool {
     a > b
 }
 
-fn http_client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
+/// Update traffic follows the same proxy/Tor settings as the scanner, so
+/// checking a release never reveals the real IP to GitHub either.
+fn http_client(proxy: Option<String>) -> Result<reqwest::Client, String> {
+    let mut builder = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(20))
-        .user_agent("HappinessScanner-Updater/0.6")
-        .build()
-        .map_err(|e| e.to_string())
+        .user_agent("HappinessScanner-Updater/0.6");
+    if let Some(proxy) = proxy {
+        builder = builder.proxy(reqwest::Proxy::all(&proxy).map_err(|e| e.to_string())?);
+    }
+    builder.build().map_err(|e| e.to_string())
 }
 
 async fn checksum_for(client: &reqwest::Client, assets: &[serde_json::Value], filename: &str) -> String {
@@ -72,9 +76,9 @@ async fn checksum_for(client: &reqwest::Client, assets: &[serde_json::Value], fi
 }
 
 /// Fetch the newest public release and compare it with the compiled version.
-pub async fn check() -> Result<UpdateInfo, String> {
+pub async fn check(proxy: Option<String>) -> Result<UpdateInfo, String> {
     let current = env!("CARGO_PKG_VERSION").to_string();
-    let client = http_client()?;
+    let client = http_client(proxy)?;
     let release: serde_json::Value = client
         .get(RELEASES_API)
         .send()
@@ -170,13 +174,13 @@ fn sha256_hex(bytes: &[u8]) -> String {
 
 /// Download, verify and launch the installer. The running app is not killed
 /// and no application data is modified by this function.
-pub async fn download_and_install(info: &UpdateInfo) -> Result<String, String> {
+pub async fn download_and_install(info: &UpdateInfo, proxy: Option<String>) -> Result<String, String> {
     if info.url.is_empty() || !(info.url.starts_with("https://github.com/")
         || info.url.starts_with("https://objects.githubusercontent.com/"))
     {
         return Err("небезопасная ссылка на обновление".into());
     }
-    let client = http_client()?;
+    let client = http_client(proxy)?;
     let bytes = client
         .get(&info.url)
         .send()
