@@ -256,10 +256,10 @@ pub fn valid_secret(bytes: &[u8]) -> [u8; 32] {
     let mut counter = 0u8;
     while SecretKey::from_slice(&candidate).is_err() {
         counter = counter.wrapping_add(1);
-        candidate.copy_from_slice(&Sha256::digest([
-            &candidate[..],
-            &[counter][..],
-        ].concat()));
+        let mut input = candidate.to_vec();
+        input.push(counter);
+        let digest = Sha256::digest(input);
+        candidate.copy_from_slice(&digest);
     }
     candidate
 }

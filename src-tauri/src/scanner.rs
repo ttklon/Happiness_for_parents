@@ -286,7 +286,6 @@ async fn worker_loop(
     empty_path: PathBuf,
     stop: &mut broadcast::Receiver<()>,
 ) {
-    let mut rng = rand::thread_rng();
     let mut seq = worker_id as u64 * 1_000_000;
     let mut consecutive_errors = 0u32;
     let mut last_history = Instant::now();
@@ -296,6 +295,8 @@ async fn worker_loop(
             break;
         }
 
+        // ThreadRng is !Send, so keep it inside this loop (never across an await).
+        let mut rng = rand::thread_rng();
         let mut batch: Vec<Candidate> = Vec::with_capacity(config.batch_size);
         let mut attempts = 0usize;
         while batch.len() < config.batch_size && attempts < config.batch_size * 20 {

@@ -159,7 +159,11 @@ fn endpoints(coin: &str, address: &str) -> Vec<Endpoint> {
                 url: rpc.to_string(),
                 verb: Verb::Post(rpc_body("eth_getBalance", vec![Value::String(address.into()), Value::String("latest".into())])),
             });
-            add("blockscout", format!("https://eth.blockscout.com/api?module=account&action=balance&address={address}"));
+            out.push(Endpoint {
+                name: "blockscout",
+                url: format!("https://eth.blockscout.com/api?module=account&action=balance&address={address}"),
+                verb: Verb::Get,
+            });
         }
     }
     out
