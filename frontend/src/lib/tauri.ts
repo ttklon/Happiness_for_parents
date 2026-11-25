@@ -4,6 +4,26 @@
  * is used so the interface can be explored without the desktop shell.
  */
 
+/** Balances arrive in the coin's smallest unit; show humans real coins. */
+const COIN_DECIMALS: Record<string, number> = {
+  BTC: 8, LTC: 8, DOGE: 8, BCH: 8, SOL: 9, TON: 9,
+};
+
+export function coinDecimals(coin: string): number {
+  return COIN_DECIMALS[coin] ?? 18; // all EVM chains use 18 decimals
+}
+
+export function formatCoinAmount(coin: string, units: number): string {
+  const decimals = coinDecimals(coin);
+  const value = units / 10 ** decimals;
+  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: decimals }).format(value);
+}
+
+export function coinAmountString(coin: string, units: number): string {
+  const decimals = coinDecimals(coin);
+  return (units / 10 ** decimals).toFixed(decimals).replace(/0+$/, '').replace(/\.$/, '');
+}
+
 export const COINS = ['BTC', 'ETH', 'LTC', 'DOGE', 'BCH', 'MATIC', 'BSC', 'ARB', 'OPT', 'BASE', 'AVAX', 'SOL', 'TON'];
 
 export const MODES = [
@@ -261,8 +281,8 @@ async function mockInvoke<T>(cmd: string, args: Record<string, unknown> = {}): P
     }
     case 'check_for_updates': return result({
       available: false,
-      version: '0.6.5',
-      current_version: '0.6.5',
+      version: '0.6.6',
+      current_version: '0.6.6',
       notes: '',
       url: '',
       asset_name: '',

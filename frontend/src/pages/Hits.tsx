@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Coins, Download, Search, Trash2, Wallet } from 'lucide-react';
-import type { HitRecord } from '../lib/tauri';
+import { coinAmountString, formatCoinAmount, type HitRecord } from '../lib/tauri';
 
 interface Props {
   hits: HitRecord[];
@@ -38,7 +38,7 @@ export default function Hits({ hits, onClear }: Props) {
   const exportCsv = () => {
     const rows = [
       ['time', 'coin', 'address', 'phrase', 'source', 'balance', 'received'],
-      ...filtered.map((h) => [h.time, h.coin, h.address, h.phrase, h.source, String(h.balance), String(h.received)]),
+      ...filtered.map((h) => [h.time, h.coin, h.address, h.phrase, h.source, coinAmountString(h.coin, h.balance), coinAmountString(h.coin, h.received)]),
     ];
     download('happiness-hits.csv', rows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n'), 'text/csv');
   };
@@ -98,7 +98,7 @@ export default function Hits({ hits, onClear }: Props) {
                     <td className="mono max-w-[220px] truncate px-4 py-3 text-slate-200" title={hit.address}>{hit.address}</td>
                     <td className="mono max-w-[260px] truncate px-4 py-3 text-slate-400" title={hit.phrase}>{hit.phrase}</td>
                     <td className="px-4 py-3 text-slate-500">{hit.source}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-emerald-300">{fmt(hit.balance)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-emerald-300">{formatCoinAmount(hit.coin, hit.balance)}</td>
                   </tr>
                 ))}
               </tbody>

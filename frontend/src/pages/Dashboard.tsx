@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import StatCard from '../components/StatCard';
-import type { AppConfig, HitRecord, LogEvent, ScanStats } from '../lib/tauri';
+import { formatCoinAmount, type AppConfig, type HitRecord, type LogEvent, type ScanStats } from '../lib/tauri';
 
 interface Props {
   stats: ScanStats;
@@ -142,10 +142,10 @@ export default function Dashboard({ stats, config, events, history, hits, onStar
             <div className="flex justify-between gap-4"><dt className="text-slate-500">Монета</dt><dd className="font-semibold text-emerald-300">{stats.last_coin}</dd></div>
             <div className="flex justify-between gap-4"><dt className="text-slate-500">Адрес</dt><dd className="mono truncate2 max-w-[65%] text-slate-200">{stats.last_address}</dd></div>
             <div className="flex justify-between gap-4"><dt className="text-slate-500">Фраза / ключ</dt><dd className="mono truncate2 max-w-[65%] text-slate-200">{stats.last_phrase}</dd></div>
-            <div className="flex justify-between gap-4"><dt className="text-slate-500">Баланс</dt><dd className="text-slate-200">{fmt(stats.last_balance)}</dd></div>
+            <div className="flex justify-between gap-4"><dt className="text-slate-500">Баланс</dt><dd className="text-slate-200">{formatCoinAmount(stats.last_coin, stats.last_balance)}</dd></div>
           </dl>
           <div className="mt-4 border-t border-slate-700/50 pt-3 text-[11px] text-slate-500">
-            Последняя находка: {hits[0] ? `${hits[0].coin} · ${fmt(hits[0].balance)}` : 'пока нет'}
+            Последняя находка: {hits[0] ? `${hits[0].coin} · ${formatCoinAmount(hits[0].coin, hits[0].balance)}` : 'пока нет'}
           </div>
         </div>
       </div>

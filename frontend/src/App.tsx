@@ -6,7 +6,7 @@ import Hits from './pages/Hits';
 import Settings from './pages/Settings';
 import Diagnostics from './pages/Diagnostics';
 import {
-  api, DEFAULT_CONFIG, EMPTY_STATS, isTauri,
+  api, DEFAULT_CONFIG, EMPTY_STATS, formatCoinAmount, isTauri,
   type AppConfig, type HitRecord, type LogEvent, type ScanStats, type UpdateInfo,
 } from './lib/tauri';
 
@@ -137,7 +137,7 @@ export default function App() {
             <div className="flex items-center gap-2 text-sm font-semibold text-emerald-300">🎯 Найден кошелёк!</div>
             <button className="text-slate-500 hover:text-slate-200" onClick={() => setToast(null)}>×</button>
           </div>
-          <div className="mt-2 text-xs text-slate-300"><span className="text-emerald-400">{toast.coin}</span> · {toast.balance.toLocaleString('ru-RU')}</div>
+          <div className="mt-2 text-xs text-slate-300"><span className="text-emerald-400">{toast.coin}</span> · {formatCoinAmount(toast.coin, toast.balance)}</div>
           <div className="mono mt-1 truncate text-[11px] text-slate-500">{toast.address}</div>
         </div>
       )}
