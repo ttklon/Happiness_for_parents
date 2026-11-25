@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Happiness Scanner",
+  "version": "0.6.0",
+  "identifier": "com.happiness.scanner",
+  "build": {
+    "beforeDevCommand": "npm --prefix ../frontend run dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "npm --prefix ../frontend run build",
+    "frontendDist": "../frontend/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Happiness Scanner",
+        "url": "/",
+        "width": 1200,
+        "height": 820,
+        "minWidth": 900,
+        "minHeight": 620,
+        "center": true,
+        "resizable": true,
+        "visible": true,
+        "decorations": true,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "plugins": {
+    "log": {
+      "level": "info",
+      "max_size": 1048576,
+      "max_files": 3
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi"],
+    "icon": ["icons/icon.ico", "icons/icon.png"],
+    "copyright": "Copyright © 2026 Happiness Scanner",
+    "category": "Utility",
+    "shortDescription": "Фоновый поиск кошельков с полной анонимностью",
+    "longDescription": "Полностью автоматический фоновый поиск cryptocurrency-кошельков с балансом: 14 монет, 15 режимов, конфетти-анонимность, шифрование результатов и красивые настройки.",
+    "windows": {
+      "wix": {
+        "language": "ru-RU"
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Базовые разрешения главного окна. Все команды приложения доступны без дополнительных прав.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
