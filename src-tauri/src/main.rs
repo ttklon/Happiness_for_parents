@@ -7,6 +7,7 @@ mod notifier;
 mod results;
 mod scanner;
 mod state;
+mod updater;
 mod wallet;
 
 use config::AppConfig;
@@ -103,6 +104,16 @@ async fn test_api(config: AppConfig) -> Result<String, String> {
 }
 
 #[tauri::command]
+async fn check_for_updates() -> Result<updater::UpdateInfo, String> {
+    updater::check().await
+}
+
+#[tauri::command]
+async fn install_update(info: updater::UpdateInfo) -> Result<String, String> {
+    updater::download_and_install(&info).await
+}
+
+#[tauri::command]
 fn endpoint_health() -> Result<Vec<balance::EndpointHealth>, String> {
     Ok(balance::health_snapshot())
 }
@@ -170,6 +181,8 @@ fn main() {
             stop_scanner,
             test_api,
             endpoint_health,
+            check_for_updates,
+            install_update,
             preview_candidates,
             set_window_visible,
             set_autostart,

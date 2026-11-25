@@ -45,6 +45,14 @@ pub struct AppConfig {
     pub vanity_prefix: String,
     pub dictionary_file: String,
     pub save_empty: bool,
+    /// Check all four derivation paths (BIP44/49/84/86) for every phrase.
+    pub derive_all_paths: bool,
+    /// File with one target address per line (TARGET_ADDRESSES mode).
+    pub target_addresses_file: String,
+    /// Never write recovery phrases into the UI log.
+    pub privacy_log_phrases: bool,
+    /// Check GitHub releases once a minute for a new version.
+    pub update_check_enabled: bool,
 
     // --- cache ------------------------------------------------------------
     pub address_cache_enabled: bool,
@@ -64,7 +72,12 @@ pub struct AppConfig {
     pub use_tor: bool,
     pub tor_proxy: String,
     pub proxy_url: String,
+    /// Additional proxies, one per line, rotated between API requests.
+    pub proxy_list: String,
     pub proxy_rotation: bool,
+    /// Random pause added to the configured delay (load / fingerprint shaping).
+    pub jitter_min_ms: u64,
+    pub jitter_max_ms: u64,
     pub random_user_agent: bool,
     pub random_headers: bool,
     pub stealth_mode: bool,
@@ -94,6 +107,10 @@ impl Default for AppConfig {
             vanity_prefix: String::new(),
             dictionary_file: String::new(),
             save_empty: false,
+            derive_all_paths: true,
+            target_addresses_file: String::new(),
+            privacy_log_phrases: true,
+            update_check_enabled: true,
             address_cache_enabled: true,
             address_cache_ttl_minutes: 60,
             telegram_enabled: false,
@@ -106,7 +123,10 @@ impl Default for AppConfig {
             use_tor: false,
             tor_proxy: "http://127.0.0.1:9050".to_string(),
             proxy_url: String::new(),
+            proxy_list: String::new(),
             proxy_rotation: false,
+            jitter_min_ms: 200,
+            jitter_max_ms: 1500,
             random_user_agent: true,
             random_headers: true,
             stealth_mode: true,
@@ -131,6 +151,8 @@ impl AppConfig {
         self.delay_ms = self.delay_ms.min(600_000);
         self.kill_switch_threshold = self.kill_switch_threshold.clamp(1, 1000);
         self.address_cache_ttl_minutes = self.address_cache_ttl_minutes.clamp(1, 100_800);
+        self.jitter_min_ms = self.jitter_min_ms.min(60_000);
+        self.jitter_max_ms = self.jitter_max_ms.clamp(self.jitter_min_ms, 60_000);
 
         if !COINS.contains(&self.coin.as_str()) && self.coin != "ALL" {
             self.coin = "ALL".to_string();
@@ -166,7 +188,7 @@ impl AppConfig {
         self.anonymity_mode = true;
         self.random_user_agent = true;
         self.random_headers = true;
-        self.proxy_rotation = self.proxy_rotation || !self.proxy_url.is_empty();
+        self.proxy_rotation = self.proxy_rotation || !self.proxy_list.trim().is_empty();
         self.stealth_mode = true;
         self.stealth_window_title = true;
         self.encryption_enabled = true;
@@ -174,17 +196,29 @@ impl AppConfig {
         self.kill_switch = true;
     }
 
-    /// Effective proxy for HTTP requests.
-    pub fn proxy(&self) -> Option<String> {
+    /// All configured proxies (Tor first, then the primary and the rotation pool).
+    pub fn proxies(&self) -> Vec<String> {
+        let mut out = Vec::new();
         if self.use_tor && !self.tor_proxy.trim().is_empty() {
-            return Some(self.tor_proxy.trim().to_string());
+            out.push(self.tor_proxy.trim().to_string());
         }
-        let p = self.proxy_url.trim();
-        if p.is_empty() {
-            None
-        } else {
-            Some(p.to_string())
+        if !self.proxy_url.trim().is_empty() {
+            out.push(self.proxy_url.trim().to_string());
         }
+        if self.proxy_rotation {
+            for line in self.proxy_list.lines() {
+                let line = line.trim();
+                if !line.is_empty() && !out.iter().any(|p| p == line) {
+                    out.push(line.to_string());
+                }
+            }
+        }
+        out
+    }
+
+    /// Effective proxy for HTTP requests (first configured one).
+    pub fn proxy(&self) -> Option<String> {
+        self.proxies().into_iter().next()
     }
 
     /// Validation messages for the UI (informational, not fatal).

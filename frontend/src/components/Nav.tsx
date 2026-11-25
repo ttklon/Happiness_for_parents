@@ -25,7 +25,7 @@ export default function Nav({ page, setPage, running, isDemo }: NavProps) {
         </div>
         <div>
           <div className="text-sm font-bold tracking-wide text-white">Happiness</div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-emerald-400/70">scanner v0.6</div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-emerald-400/70">scanner v0.6.1</div>
         </div>
       </div>
 

@@ -117,6 +117,7 @@ fn endpoints(coin: &str, address: &str) -> Vec<Endpoint> {
             add("mempool.space", format!("https://mempool.space/api/address/{address}"));
             add("blockchain.info", format!("https://blockchain.info/rawaddr/{address}"));
             add("blockchair", format!("https://api.blockchair.com/bitcoin/dashboards/address/{address}"));
+            add("blockcypher", format!("https://api.blockcypher.com/v1/btc/main/addrs/{address}/balance"));
         }
         "LTC" => {
             add("blockcypher", format!("https://api.blockcypher.com/v1/ltc/main/addrs/{address}/balance"));
@@ -186,15 +187,15 @@ const LANGUAGES: [&str; 5] = [
     "ja-JP,ja;q=0.9,en;q=0.8",
 ];
 
-fn client(config: &AppConfig) -> Result<reqwest::Client, String> {
-    if config.block_direct_connection && config.proxy().is_none() {
+fn client(config: &AppConfig, proxy: Option<String>) -> Result<reqwest::Client, String> {
+    if config.block_direct_connection && proxy.is_none() {
         return Err("Прямое соединение заблокировано: включите Tor или прокси".into());
     }
     let mut builder = reqwest::Client::builder()
         .timeout(Duration::from_secs(20))
         .connect_timeout(Duration::from_secs(10))
         .redirect(reqwest::redirect::Policy::limited(3));
-    if let Some(proxy) = config.proxy() {
+    if let Some(proxy) = proxy {
         builder = builder.proxy(reqwest::Proxy::all(&proxy).map_err(|e| format!("proxy: {e}"))?);
     }
     builder.build().map_err(|e| e.to_string())
@@ -269,7 +270,17 @@ fn find_number(value: &Value, depth: usize) -> Option<u64> {
 
 /// Returns `(balance, total_received)` in the coin's smallest unit.
 pub async fn check_balance(coin: &str, address: &str, config: &AppConfig) -> Result<(u64, u64), String> {
-    let http = client(config)?;
+    // Pick one proxy per request: rotation breaks IP-based fingerprinting and
+    // rate-limit bans. With "block direct" enabled, no proxy means no request.
+    let proxies = config.proxies();
+    let proxy = if proxies.is_empty() {
+        None
+    } else if config.proxy_rotation && proxies.len() > 1 {
+        Some(proxies[rand::random::<usize>() % proxies.len()].clone())
+    } else {
+        Some(proxies[0].clone())
+    };
+    let http = client(config, proxy)?;
     let list = endpoints(coin, address);
     let mut last_error = "no endpoints configured".to_string();
 

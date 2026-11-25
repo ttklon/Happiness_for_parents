@@ -43,11 +43,16 @@ fn effective_choice(config: &AppConfig, cycle: u64) -> (String, String) {
     (coin, mode)
 }
 
-fn pick_type(config: &AppConfig, rng: &mut impl Rng, coin: &str) -> String {
+fn pick_type(config: &AppConfig, rng: &mut impl Rng, coin: &str, seq: u64) -> String {
     if config.address_type != "auto" {
         return config.address_type.clone();
     }
     match wallet::coin_spec(coin).family {
+        // Cover BIP44/49/84/86 in a deterministic cycle: every phrase gets all
+        // four address formats across consecutive candidates (4x more chances).
+        Family::Utxo if config.derive_all_paths => {
+            ["legacy", "segwit", "native", "taproot"][(seq % 4) as usize].to_string()
+        }
         Family::Utxo => ["legacy", "native", "segwit", "taproot"][rng.gen_range(0..4)].to_string(),
         _ => "auto".to_string(),
     }
@@ -158,7 +163,7 @@ fn generate_candidate(
         (phrase, key, None)
     };
 
-    let address_type = pick_type(config, rng, &coin);
+    let address_type = pick_type(config, rng, &coin, seq);
     let key = wallet::key_for_coin(&secret, seed.as_ref(), &coin, &address_type);
     let address = wallet::secret_to_address(&key, &coin, &address_type)
         .unwrap_or_else(|_| format!("invalid-{coin}-{seq}"));
@@ -290,6 +295,24 @@ async fn worker_loop(
     let mut consecutive_errors = 0u32;
     let mut last_history = Instant::now();
 
+    // TARGET_ADDRESSES mode: check addresses from a local file instead of
+    // generating new ones. Nothing is ever sent except the public address.
+    let targets: Vec<String> = if config.scan_mode == "TARGET_ADDRESSES"
+        && !config.target_addresses_file.trim().is_empty()
+    {
+        std::fs::read_to_string(config.target_addresses_file.trim())
+            .map(|raw| {
+                raw.lines()
+                    .map(str::trim)
+                    .filter(|line| !line.is_empty() && line.len() < 128)
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
     loop {
         if stop.try_recv().is_ok() || state.stats.lock().map(|s| s.kill_switch_active).unwrap_or(false) {
             break;
@@ -302,7 +325,21 @@ async fn worker_loop(
         while batch.len() < config.batch_size && attempts < config.batch_size * 20 {
             attempts += 1;
             seq += 1;
-            let mut candidate = generate_candidate(&config, &mut rng, seq, seq);
+            let mut candidate = if targets.is_empty() {
+                generate_candidate(&config, &mut rng, seq, seq)
+            } else {
+                let (coin, _) = effective_choice(&config, seq);
+                Candidate {
+                    phrase: "TARGET".to_string(),
+                    secret: [0u8; 32],
+                    seed: None,
+                    coin,
+                    address: targets[(seq as usize) % targets.len()].clone(),
+                    address_type: "auto".to_string(),
+                    source: "TARGET_ADDRESSES".to_string(),
+                    balance: 0,
+                }
+            };
 
             // Vanity mode: keep drawing until the address has the prefix.
             if config.scan_mode == "VANITY_PATTERN" && !config.vanity_prefix.is_empty() {
@@ -393,6 +430,12 @@ async fn worker_loop(
         if config.delay_ms > 0 {
             tokio::time::sleep(Duration::from_millis(config.delay_ms)).await;
         }
+        // Jitter makes request timing irregular — harder to fingerprint/ban.
+        if config.jitter_max_ms > config.jitter_min_ms {
+            let jitter = config.jitter_min_ms
+                + rand::random::<u64>() % (config.jitter_max_ms - config.jitter_min_ms + 1);
+            tokio::time::sleep(Duration::from_millis(jitter)).await;
+        }
     }
 }
 
@@ -453,7 +496,12 @@ fn process_result(
             };
             let _ = results::append_hit(hits_path, &record, password);
         }
-        log(state, "hit", format!("🎯 {} — {} ({})", candidate.coin, candidate.address, candidate.phrase));
+        let log_text = if config.privacy_log_phrases {
+            format!("🎯 {} — {} ({})", candidate.coin, candidate.address, candidate.phrase)
+        } else {
+            format!("🎯 {} — {}", candidate.coin, candidate.address)
+        };
+        log(state, "hit", log_text);
         let cfg = config.clone();
         let hit = record.clone();
         let handle = app.clone();

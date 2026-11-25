@@ -8,7 +8,7 @@ import {
 import Toggle from '../components/Toggle';
 import {
   api, COINS, MODES,
-  type AppConfig, type EndpointHealth,
+  type AppConfig, type EndpointHealth, type UpdateInfo,
 } from '../lib/tauri';
 
 interface Props {
@@ -90,6 +90,8 @@ export default function Settings({ config, setConfig }: Props) {
   const [preview, setPreview] = useState<[string, string, string][]>([]);
   const [exported, setExported] = useState('');
   const [importText, setImportText] = useState('');
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updateBusy, setUpdateBusy] = useState(false);
 
   const patch = (partial: Partial<AppConfig>) => setConfig({ ...config, ...partial });
 
@@ -152,6 +154,21 @@ export default function Settings({ config, setConfig }: Props) {
     } catch (error) { setStatus(String(error)); }
   };
 
+  const checkUpdates = async () => {
+    setUpdateBusy(true);
+    try { setUpdateInfo(await api.checkUpdates()); }
+    catch (error) { setStatus(String(error)); }
+    finally { setUpdateBusy(false); }
+  };
+
+  const installUpdate = async () => {
+    if (!updateInfo?.available) return;
+    setUpdateBusy(true);
+    try { setStatus(await api.installUpdate(updateInfo)); }
+    catch (error) { setStatus(String(error)); }
+    finally { setUpdateBusy(false); }
+  };
+
   return (
     <div className="grid-bg min-h-full space-y-5 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -191,6 +208,11 @@ export default function Settings({ config, setConfig }: Props) {
             onChange={(v) => patch({ vanity_prefix: v })} />
           <TextField label="Файл словаря (одна фраза на строку)" value={config.dictionary_file} placeholder="C:\\words.txt"
             onChange={(v) => patch({ dictionary_file: v })} />
+          <TextField label="Файл целевых адресов (режим TARGET_ADDRESSES)" value={config.target_addresses_file}
+            placeholder="C:\\addresses.txt" onChange={(v) => patch({ target_addresses_file: v })} />
+          <Row label="Проверять все пути BIP44/49/84/86" hint="Для каждой фразы перебираются legacy, P2SH-SegWit, native SegWit и Taproot — в 4 раза больше шансов">
+            <Toggle checked={config.derive_all_paths} onChange={(v) => patch({ derive_all_paths: v })} />
+          </Row>
           <Row label="Сохранять пустые адреса" hint="Записываются в results/empty.jsonl (если не включён режим «только в памяти»)">
             <Toggle checked={config.save_empty} onChange={(v) => patch({ save_empty: v })} />
           </Row>
@@ -229,7 +251,17 @@ export default function Settings({ config, setConfig }: Props) {
           </Row>
           <TextField label="Адрес Tor SOCKS5" value={config.tor_proxy} onChange={(v) => patch({ tor_proxy: v })} />
           <TextField label="Дополнительный прокси (http://user:pass@host:port)" value={config.proxy_url} onChange={(v) => patch({ proxy_url: v })} />
+          <label className="block">
+            <span className="field-label">Пул прокси для ротации (по одному на строку)</span>
+            <textarea className="input mono h-20 w-full resize-none text-[10px]" value={config.proxy_list}
+              placeholder={'socks5://127.0.0.1:9050\nhttp://user:pass@1.2.3.4:8080'}
+              onChange={(e) => patch({ proxy_list: e.target.value })} />
+          </label>
           <Row label="Ротация прокси"><Toggle checked={config.proxy_rotation} onChange={(v) => patch({ proxy_rotation: v })} /></Row>
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField label="Джиттер от, мс" value={config.jitter_min_ms} min={0} max={60000} onChange={(v) => patch({ jitter_min_ms: v, jitter_max_ms: Math.max(v, config.jitter_max_ms) })} />
+            <NumberField label="Джиттер до, мс" value={config.jitter_max_ms} min={0} max={60000} onChange={(v) => patch({ jitter_max_ms: v })} />
+          </div>
           <Row label="Случайный User-Agent"><Toggle checked={config.random_user_agent} onChange={(v) => patch({ random_user_agent: v })} /></Row>
           <Row label="Случайные HTTP-заголовки"><Toggle checked={config.random_headers} onChange={(v) => patch({ random_headers: v })} /></Row>
           <Row label="Stealth-режим"><Toggle checked={config.stealth_mode} onChange={(v) => patch({ stealth_mode: v })} /></Row>
@@ -258,6 +290,9 @@ export default function Settings({ config, setConfig }: Props) {
           <Row label="Блокировать прямой HTTP" hint="Без прокси запросы к API запрещены — реальный IP не раскрывается">
             <Toggle checked={config.block_direct_connection} onChange={(v) => patch({ block_direct_connection: v })} />
           </Row>
+          <Row label="Не писать фразы в лог" hint="В журнале остаются только адреса — пароли и мнемоники не светятся">
+            <Toggle checked={config.privacy_log_phrases} onChange={(v) => patch({ privacy_log_phrases: v })} />
+          </Row>
         </Panel>
 
         <Panel title="Уведомления" icon={<Send size={17} />}>
@@ -266,6 +301,29 @@ export default function Settings({ config, setConfig }: Props) {
           <TextField label="Chat ID" value={config.telegram_chat_id} onChange={(v) => patch({ telegram_chat_id: v })} />
           <Row label="Discord webhook"><Toggle checked={config.discord_enabled} onChange={(v) => patch({ discord_enabled: v })} /></Row>
           <TextField label="URL webhook" type="password" value={config.discord_webhook} onChange={(v) => patch({ discord_webhook: v })} />
+        </Panel>
+
+        <Panel title="Автоматические обновления" icon={<RefreshCw size={17} />}>
+          <Row label="Проверять каждые 60 секунд" hint="Новая версия находится сама; настройки и результаты при обновлении не сбрасываются">
+            <Toggle checked={config.update_check_enabled} onChange={(v) => patch({ update_check_enabled: v })} />
+          </Row>
+          <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-3 text-[11px] text-slate-400">
+            <div>Текущая версия: <span className="text-emerald-300">{updateInfo?.current_version ?? '0.6.1'}</span></div>
+            <div>Доступна: <span className={updateInfo?.available ? 'text-emerald-300' : 'text-slate-400'}>{updateInfo ? (updateInfo.available ? updateInfo.version : 'актуальная') : 'не проверялась'}</span></div>
+            {updateInfo?.asset_name && <div className="mono mt-1 text-slate-500">{updateInfo.asset_name} · {(updateInfo.size / 1024 / 1024).toFixed(1)} МБ</div>}
+            {updateInfo?.notes && <div className="mt-2 whitespace-pre-wrap text-slate-500">{updateInfo.notes.slice(0, 500)}</div>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button className="btn-ghost" onClick={() => void checkUpdates()} disabled={updateBusy}>
+              <RefreshCw size={15} className={updateBusy ? 'animate-spin' : ''} /> Проверить сейчас
+            </button>
+            <button className="btn-primary" onClick={() => void installUpdate()} disabled={!updateInfo?.available || updateBusy}>
+              <Download size={15} /> Скачать и установить
+            </button>
+          </div>
+          <div className="text-[10px] text-slate-600">
+            Перед установкой проверяется SHA-256 подпись релиза. Конфиг в %APPDATA% сохраняется.
+          </div>
         </Panel>
 
         <Panel title="Система" icon={<Settings2 size={17} />}>

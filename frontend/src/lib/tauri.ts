@@ -23,6 +23,10 @@ export interface AppConfig {
   vanity_prefix: string;
   dictionary_file: string;
   save_empty: boolean;
+  derive_all_paths: boolean;
+  target_addresses_file: string;
+  privacy_log_phrases: boolean;
+  update_check_enabled: boolean;
   address_cache_enabled: boolean;
   address_cache_ttl_minutes: number;
   telegram_enabled: boolean;
@@ -35,7 +39,10 @@ export interface AppConfig {
   use_tor: boolean;
   tor_proxy: string;
   proxy_url: string;
+  proxy_list: string;
   proxy_rotation: boolean;
+  jitter_min_ms: number;
+  jitter_max_ms: number;
   random_user_agent: boolean;
   random_headers: boolean;
   stealth_mode: boolean;
@@ -61,6 +68,10 @@ export const DEFAULT_CONFIG: AppConfig = {
   vanity_prefix: '',
   dictionary_file: '',
   save_empty: false,
+  derive_all_paths: true,
+  target_addresses_file: '',
+  privacy_log_phrases: true,
+  update_check_enabled: true,
   address_cache_enabled: true,
   address_cache_ttl_minutes: 60,
   telegram_enabled: false,
@@ -73,7 +84,10 @@ export const DEFAULT_CONFIG: AppConfig = {
   use_tor: false,
   tor_proxy: 'http://127.0.0.1:9050',
   proxy_url: '',
+  proxy_list: '',
   proxy_rotation: false,
+  jitter_min_ms: 200,
+  jitter_max_ms: 1500,
   random_user_agent: true,
   random_headers: true,
   stealth_mode: true,
@@ -129,6 +143,18 @@ export interface LogEvent { time: string; kind: string; text: string }
 export interface EndpointHealth {
   name: string; coin: string; ok: number; fail: number;
   quarantined_for_seconds: number; last_error: string;
+}
+
+export interface UpdateInfo {
+  available: boolean;
+  version: string;
+  current_version: string;
+  notes: string;
+  url: string;
+  asset_name: string;
+  size: number;
+  checksum: string;
+  published_at: string;
 }
 
 export function isTauri(): boolean {
@@ -233,6 +259,18 @@ async function mockInvoke<T>(cmd: string, args: Record<string, unknown> = {}): P
         return [coin, fakeAddress(coin), 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'];
       }));
     }
+    case 'check_for_updates': return result({
+      available: false,
+      version: '0.6.1',
+      current_version: '0.6.1',
+      notes: '',
+      url: '',
+      asset_name: '',
+      size: 0,
+      checksum: '',
+      published_at: '',
+    });
+    case 'install_update': return result('Установка обновления доступна только в десктопной версии.');
     case 'set_autostart': mock.config.autostart = Boolean(args.enabled); return result('ok');
     case 'set_stealth_title': return result('ok');
     case 'set_window_visible': return result('ok');
@@ -263,6 +301,8 @@ export const api = {
   stop: () => invoke<string>('stop_scanner'),
   testApi: (config: AppConfig) => invoke<string>('test_api', { config }),
   endpointHealth: () => invoke<EndpointHealth[]>('endpoint_health'),
+  checkUpdates: () => invoke<UpdateInfo>('check_for_updates'),
+  installUpdate: (info: UpdateInfo) => invoke<string>('install_update', { info }),
   preview: (config: AppConfig, count = 3) => invoke<[string, string, string][]>('preview_candidates', { config, count }),
   setWindowVisible: (visible: boolean) => invoke<string>('set_window_visible', { visible }),
   setAutostart: (enabled: boolean) => invoke<string>('set_autostart', { enabled }),

@@ -7,7 +7,7 @@ import Settings from './pages/Settings';
 import Diagnostics from './pages/Diagnostics';
 import {
   api, DEFAULT_CONFIG, EMPTY_STATS, isTauri,
-  type AppConfig, type HitRecord, type LogEvent, type ScanStats,
+  type AppConfig, type HitRecord, type LogEvent, type ScanStats, type UpdateInfo,
 } from './lib/tauri';
 
 export default function App() {
@@ -20,6 +20,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<HitRecord | null>(null);
   const lastHit = useRef<string | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -48,6 +49,21 @@ export default function App() {
     const timer = window.setInterval(() => { void refresh(); void refreshHits(); }, 900);
     return () => { alive = false; window.clearInterval(timer); };
   }, [refresh, refreshHits]);
+
+  // Check GitHub for a new release once a minute — no user action required.
+  useEffect(() => {
+    if (!config.update_check_enabled) return;
+    let alive = true;
+    const check = async () => {
+      try {
+        const info = await api.checkUpdates();
+        if (alive && info.available) setUpdateInfo(info);
+      } catch { /* offline / rate limited — try again next minute */ }
+    };
+    void check();
+    const timer = window.setInterval(() => void check(), 60_000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, [config.update_check_enabled]);
 
   useEffect(() => {
     const first = hits[0];
@@ -123,6 +139,20 @@ export default function App() {
           </div>
           <div className="mt-2 text-xs text-slate-300"><span className="text-emerald-400">{toast.coin}</span> · {toast.balance.toLocaleString('ru-RU')}</div>
           <div className="mono mt-1 truncate text-[11px] text-slate-500">{toast.address}</div>
+        </div>
+      )}
+
+      {updateInfo?.available && (
+        <div className="fixed bottom-6 left-1/2 z-50 w-[420px] -translate-x-1/2 rounded-xl border border-emerald-400/40 bg-[#0d1c22]/95 p-4 shadow-2xl shadow-black/50 backdrop-blur">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-emerald-300">🆕 Доступно обновление {updateInfo.version}</div>
+            <button className="text-slate-500 hover:text-slate-200" onClick={() => setUpdateInfo(null)}>×</button>
+          </div>
+          <div className="mono mt-1 text-[11px] text-slate-500">{updateInfo.asset_name} · SHA-256 проверяется перед установкой</div>
+          <div className="mt-3 flex gap-2">
+            <button className="btn-primary !py-1.5 !text-xs" onClick={() => void api.installUpdate(updateInfo)}>Обновить сейчас</button>
+            <button className="btn-ghost !py-1.5 !text-xs" onClick={() => setPage('settings')}>Настройки</button>
+          </div>
         </div>
       )}
     </div>
