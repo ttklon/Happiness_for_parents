@@ -497,9 +497,9 @@ fn process_result(
             let _ = results::append_hit(hits_path, &record, password);
         }
         let log_text = if config.privacy_log_phrases {
-            format!("🎯 {} — {} ({})", candidate.coin, candidate.address, candidate.phrase)
-        } else {
             format!("🎯 {} — {}", candidate.coin, candidate.address)
+        } else {
+            format!("🎯 {} — {} ({})", candidate.coin, candidate.address, candidate.phrase)
         };
         log(state, "hit", log_text);
         let cfg = config.clone();

@@ -53,7 +53,7 @@
 | Случайный User-Agent | уникальный UA для каждого запроса |
 | Случайные заголовки | Accept-Language, Accept, DNT — ротируются |
 | Ротация прокси | смена между запросами |
-| Stealth + маска окна | окно называется `System Host Process` |
+| Stealth | режим маски активен; маска названия окна включается отдельно |
 | AES-256-GCM | шифрование hits/empty (PBKDF2-SHA256, 100 000 итераций) |
 | Только в памяти | на диск не пишется вообще ничего |
 | Килл-свитч | стоп после N ошибок API |
@@ -132,11 +132,30 @@ npm run dev
 
 ## Где лежат данные
 
-- `%APPDATA%\Happiness Scanner\config.json`
-- `%APPDATA%\Happiness Scanner\results\hits.jsonl`
-- `%APPDATA%\Happiness Scanner\results\empty.jsonl`
+- `%APPDATA%\com.happiness.scanner\config.json`
+- `%APPDATA%\com.happiness.scanner\results\hits.jsonl`
+- `%APPDATA%\com.happiness.scanner\results\empty.jsonl`
+- `%APPDATA%\com.happiness.scanner\startup.log` — журнал запуска (см. ниже)
 
-При включённом `memory_only_mode` файлы результатов не создаются.
+Обновление установщиком эти файлы не трогает. При включённом `memory_only_mode`
+файлы результатов не создаются — режим включается только вручную.
+
+## Если приложение не открывается
+
+Начиная с v0.6.2 первое после обновления окно показывается всегда: старые версии
+запускали его скрытым в трей и с маской названия `System Host Process`, из-за чего
+создавалось впечатление, что программа не стартовала.
+
+1. Проверьте трей у часов и Диспетчер задач: процесс `Happiness Scanner.exe`.
+   В «Настройки → Система» отключите «Запускать свёрнутым» и «Маску окна».
+2. Запустите `Happiness Scanner.exe --show` — эта команда принудительно показывает окно.
+3. Если окно не появляется и процесса нет, откройте
+   `%APPDATA%\com.happiness.scanner\startup.log`: туда пишутся все этапы старта
+   и фатальные ошибки. При ошибке Tauri показывается диалог с причиной.
+4. Убедитесь, что установлен [Microsoft Edge WebView2 Runtime](https://aka.ms/webview2)
+   и Microsoft Visual C++ Redistributable 2015–2022 (x64) — без них Tauri-приложение
+   выходит с ошибкой. Антивирус может блокировать незнакомый установщик: проверьте
+   карантин и SHA-256 из `checksums.txt`.
 
 ## Тесты
 `cargo test` в `src-tauri` проверяет известные векторы BIP39, BIP32 и Base58Check —

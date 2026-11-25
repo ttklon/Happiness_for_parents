@@ -91,7 +91,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   random_user_agent: true,
   random_headers: true,
   stealth_mode: true,
-  stealth_window_title: true,
+  stealth_window_title: false,
   encryption_enabled: false,
   encryption_password: '',
   memory_only_mode: false,
@@ -99,7 +99,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   kill_switch_threshold: 10,
   block_direct_connection: false,
   autostart: false,
-  start_minimized: true,
+  start_minimized: false,
 };
 
 export interface ScanStats {
@@ -261,8 +261,8 @@ async function mockInvoke<T>(cmd: string, args: Record<string, unknown> = {}): P
     }
     case 'check_for_updates': return result({
       available: false,
-      version: '0.6.1',
-      current_version: '0.6.1',
+      version: '0.6.2',
+      current_version: '0.6.2',
       notes: '',
       url: '',
       asset_name: '',

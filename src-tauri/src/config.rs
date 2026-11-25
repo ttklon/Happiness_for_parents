@@ -130,7 +130,7 @@ impl Default for AppConfig {
             random_user_agent: true,
             random_headers: true,
             stealth_mode: true,
-            stealth_window_title: true,
+            stealth_window_title: false,
             encryption_enabled: false,
             encryption_password: String::new(),
             memory_only_mode: false,
@@ -138,7 +138,7 @@ impl Default for AppConfig {
             kill_switch_threshold: 10,
             block_direct_connection: false,
             autostart: false,
-            start_minimized: true,
+            start_minimized: false,
         }
     }
 }
@@ -195,9 +195,10 @@ impl AppConfig {
         self.random_headers = true;
         self.proxy_rotation = self.proxy_rotation || !self.proxy_list.trim().is_empty();
         self.stealth_mode = true;
-        self.stealth_window_title = true;
+        // The title mask is cosmetic: hiding the window behind it made a fresh
+        // install look as if the app never started. Leave it opt-in.
         self.encryption_enabled = true;
-        self.memory_only_mode = true;
+        // Results must survive restarts/updates; memory-only stays opt-in.
         self.kill_switch = true;
     }
 
@@ -312,4 +313,28 @@ pub fn set_autostart(enabled: bool) -> Result<(), String> {
 #[cfg(not(target_os = "windows"))]
 pub fn set_autostart(_enabled: bool) -> Result<(), String> {
     Ok(())
+}
+
+#[cfg(test)]
+mod launch_tests {
+    use super::AppConfig;
+
+    #[test]
+    fn first_launch_keeps_the_window_visible() {
+        let cfg = AppConfig::default().normalized();
+        assert!(!cfg.start_minimized, "a new install must show its window");
+        assert!(
+            !cfg.stealth_window_title,
+            "cosmetic title masking must be opt-in"
+        );
+    }
+
+    #[test]
+    fn anonymity_does_not_disable_result_persistence() {
+        let cfg = AppConfig::default().normalized();
+        assert!(
+            !cfg.memory_only_mode,
+            "hits must survive an update unless memory-only is chosen explicitly"
+        );
+    }
 }

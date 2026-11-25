@@ -15,6 +15,71 @@ use state::{AppState, LogEvent, ScanStats};
 use std::sync::Arc;
 use tauri::{Manager, State};
 
+// A GUI-only Windows process has no console: without this file a silent exit
+// was impossible to diagnose. These helpers run before Tauri starts.
+fn diagnostic_file() -> std::path::PathBuf {
+    let base = std::env::var_os("APPDATA")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    base.join("com.happiness.scanner").join("startup.log")
+}
+
+fn startup_log(message: &str) {
+    use std::io::Write;
+    let path = diagnostic_file();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
+        let _ = writeln!(
+            file,
+            "{} {}",
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+            message
+        );
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn show_startup_error(message: &str) {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    fn wide(text: &str) -> Vec<u16> {
+        OsStr::new(text)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect()
+    }
+    unsafe {
+        MessageBoxW(
+            std::ptr::null_mut(),
+            wide(message).as_ptr(),
+            wide("Happiness Scanner — ошибка запуска").as_ptr(),
+            0x10, // MB_ICONERROR
+        );
+    }
+}
+
+#[cfg(target_os = "windows")]
+#[link(name = "user32")]
+extern "system" {
+    fn MessageBoxW(
+        hwnd: *mut std::ffi::c_void,
+        text: *const u16,
+        caption: *const u16,
+        kind: u32,
+    ) -> i32;
+}
+
+#[cfg(not(target_os = "windows"))]
+fn show_startup_error(message: &str) {
+    eprintln!("{message}");
+}
+
 // ---------------------------------------------------------------------------
 // Commands exposed to the React UI
 // ---------------------------------------------------------------------------
@@ -174,7 +239,14 @@ fn set_stealth_title(handle: tauri::AppHandle, enabled: bool) -> Result<String, 
 }
 
 fn main() {
-    tauri::Builder::default()
+    startup_log(&format!(
+        "Запуск v{}; exe={:?}; cwd={:?}; args={:?}",
+        env!("CARGO_PKG_VERSION"),
+        std::env::current_exe(),
+        std::env::current_dir(),
+        std::env::args().collect::<Vec<_>>()
+    ));
+    let result = tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::default().build())
         .manage(Arc::new(AppState::default()))
         .invoke_handler(tauri::generate_handler![
@@ -201,7 +273,28 @@ fn main() {
         ])
         .setup(|app| {
             let state = app.state::<Arc<AppState>>().inner().clone();
-            let cfg = config::load(&app.handle()).unwrap_or_default();
+            let handle = app.handle();
+            let mut cfg = config::load(&handle).unwrap_or_default();
+            startup_log("setup: конфиг загружен");
+
+            // v0.6.1 hid the very first window ("stealth by default"), so an
+            // ordinary install looked like it never launched. Show the window
+            // once after upgrading, then respect the user's own settings.
+            if let Ok(marker) = config::data_dir(&handle)
+                .map(|dir| dir.join("visible-on-startup-v0.6.2"))
+            {
+                if !marker.exists() {
+                    startup_log("первый запуск после обновления: окно будет видимым");
+                    cfg.start_minimized = false;
+                    cfg.stealth_window_title = false;
+                    if let Err(e) = config::save(&handle, &cfg) {
+                        startup_log(&format!("не удалось сохранить конфиг: {e}"));
+                    }
+                    if let Err(e) = std::fs::write(&marker, b"1") {
+                        startup_log(&format!("не удалось создать метку миграции: {e}"));
+                    }
+                }
+            }
 
             // Tray icon — the app keeps scanning after the window is closed.
             let show = tauri::menu::MenuItem::with_id(app, "show", "Показать окно", true, None::<&str>)?;
@@ -233,6 +326,7 @@ fn main() {
                 })
                 .build(app)?;
             let _tray = tray;
+            startup_log("setup: трей создан");
 
             let window = app.get_webview_window("main").expect("main window");
             let window_clone = window.clone();
@@ -246,16 +340,34 @@ fn main() {
             if cfg.stealth_window_title {
                 let _ = window.set_title("System Host Process");
             }
-            let minimized = cfg.start_minimized
-                || std::env::args().any(|arg| arg == "--minimized");
+            let args: Vec<String> = std::env::args().collect();
+            let force_visible = args.iter().any(|a| a == "--show" || a == "--force-visible");
+            let minimized = !force_visible
+                && (cfg.start_minimized || args.iter().any(|arg| arg == "--minimized"));
             if minimized {
                 let _ = window.hide();
+                startup_log("окно скрыто в трей по настройке start_minimized");
+            } else {
+                let _ = window.show();
+                let _ = window.set_focus();
+                startup_log("главное окно показано");
             }
 
             *state.config.lock().map_err(|e| e.to_string())? = cfg;
             state.log("info", "Happiness Scanner готов. Нажмите «СТАРТ» — остальное автоматизировано.");
+            startup_log("setup: готово, вход в event loop");
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Happiness Scanner");
+        .run(tauri::generate_context!());
+
+    if let Err(err) = result {
+        startup_log(&format!("ФАТАЛЬНАЯ ОШИБКА: {err}"));
+        show_startup_error(&format!(
+            "Не удалось запустить Happiness Scanner.\n\n{err}\n\n\
+            Частая причина — отсутствующий Microsoft Edge WebView2 Runtime.\n\
+            Установите его: https://aka.ms/webview2\n\n\
+            Подробности: {}",
+            diagnostic_file().display()
+        ));
+    }
 }
