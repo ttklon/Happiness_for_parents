@@ -4,6 +4,7 @@
 //! `#[serde(default)]` means older configs keep working when new fields appear.
 
 use serde::{Deserialize, Serialize};
+use tauri::Manager;
 
 pub const COINS: [&str; 14] = [
     "BTC", "ETH", "LTC", "DOGE", "BCH", "MATIC", "BSC", "ARB", "OPT", "BASE", "AVAX", "TRX",

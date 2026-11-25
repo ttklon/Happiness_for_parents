@@ -87,7 +87,7 @@ fn is_quarantined(coin: &str, name: &str) -> bool {
 #[derive(Clone, Copy)]
 enum Verb {
     Get,
-    Post(&'static str),
+    Post(String),
 }
 
 struct Endpoint {

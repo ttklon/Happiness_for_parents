@@ -11,6 +11,7 @@ mod wallet;
 
 use config::AppConfig;
 use state::{AppState, LogEvent, ScanStats};
+use std::sync::Arc;
 use tauri::{Manager, State};
 
 // ---------------------------------------------------------------------------
@@ -18,27 +19,27 @@ use tauri::{Manager, State};
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-fn get_stats(state: State<'_, AppState>) -> Result<ScanStats, String> {
+fn get_stats(state: State<'_, Arc<AppState>>) -> Result<ScanStats, String> {
     Ok(state.stats.lock().map_err(|e| e.to_string())?.clone())
 }
 
 #[tauri::command]
-fn get_events(state: State<'_, AppState>) -> Result<Vec<LogEvent>, String> {
+fn get_events(state: State<'_, Arc<AppState>>) -> Result<Vec<LogEvent>, String> {
     Ok(state.events.lock().map_err(|e| e.to_string())?.iter().cloned().collect())
 }
 
 #[tauri::command]
-fn get_history(state: State<'_, AppState>) -> Result<Vec<u64>, String> {
+fn get_history(state: State<'_, Arc<AppState>>) -> Result<Vec<u64>, String> {
     Ok(state.history.lock().map_err(|e| e.to_string())?.iter().copied().collect())
 }
 
 #[tauri::command]
-fn get_hits(state: State<'_, AppState>) -> Result<Vec<results::HitRecord>, String> {
+fn get_hits(state: State<'_, Arc<AppState>>) -> Result<Vec<results::HitRecord>, String> {
     Ok(state.hits.lock().map_err(|e| e.to_string())?.clone())
 }
 
 #[tauri::command]
-fn get_stored_hits(state: State<'_, AppState>, handle: tauri::AppHandle) -> Result<Vec<results::HitRecord>, String> {
+fn get_stored_hits(state: State<'_, Arc<AppState>>, handle: tauri::AppHandle) -> Result<Vec<results::HitRecord>, String> {
     let cfg = state.config.lock().map_err(|e| e.to_string())?.clone();
     let password = if cfg.encryption_enabled && !cfg.encryption_password.is_empty() {
         Some(cfg.encryption_password.as_str())
@@ -50,7 +51,7 @@ fn get_stored_hits(state: State<'_, AppState>, handle: tauri::AppHandle) -> Resu
 }
 
 #[tauri::command]
-fn clear_hits(state: State<'_, AppState>, handle: tauri::AppHandle) -> Result<String, String> {
+fn clear_hits(state: State<'_, Arc<AppState>>, handle: tauri::AppHandle) -> Result<String, String> {
     state.hits.lock().map_err(|e| e.to_string())?.clear();
     let path = config::results_dir(&handle)?.join("hits.jsonl");
     results::clear_file(&path)?;
@@ -58,14 +59,14 @@ fn clear_hits(state: State<'_, AppState>, handle: tauri::AppHandle) -> Result<St
 }
 
 #[tauri::command]
-fn load_config(state: State<'_, AppState>, handle: tauri::AppHandle) -> Result<AppConfig, String> {
+fn load_config(state: State<'_, Arc<AppState>>, handle: tauri::AppHandle) -> Result<AppConfig, String> {
     let cfg = config::load(&handle)?;
     *state.config.lock().map_err(|e| e.to_string())? = cfg.clone();
     Ok(cfg)
 }
 
 #[tauri::command]
-fn save_config(state: State<'_, AppState>, handle: tauri::AppHandle, config: AppConfig) -> Result<Vec<String>, String> {
+fn save_config(state: State<'_, Arc<AppState>>, handle: tauri::AppHandle, config: AppConfig) -> Result<Vec<String>, String> {
     let warnings = config::save(&handle, &config)?;
     *state.config.lock().map_err(|e| e.to_string())? = config.normalized();
     Ok(warnings)
@@ -85,14 +86,14 @@ fn import_config(json: String) -> Result<AppConfig, String> {
 #[tauri::command]
 async fn start_scanner(
     handle: tauri::AppHandle,
-    state: State<'_, AppState>,
+    state: State<'_, Arc<AppState>>,
     config: AppConfig,
 ) -> Result<String, String> {
     scanner::start(handle, state.inner().clone(), config)
 }
 
 #[tauri::command]
-fn stop_scanner(state: State<'_, AppState>) -> Result<String, String> {
+fn stop_scanner(state: State<'_, Arc<AppState>>) -> Result<String, String> {
     scanner::stop(state.inner().clone())
 }
 
@@ -153,7 +154,7 @@ fn set_stealth_title(handle: tauri::AppHandle, enabled: bool) -> Result<String, 
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::default().build())
-        .manage(AppState::default())
+        .manage(Arc::new(AppState::default()))
         .invoke_handler(tauri::generate_handler![
             get_stats,
             get_events,
@@ -175,7 +176,7 @@ fn main() {
             set_stealth_title,
         ])
         .setup(|app| {
-            let state = app.state::<AppState>().inner().clone();
+            let state = app.state::<Arc<AppState>>().inner().clone();
             let cfg = config::load(&app.handle()).unwrap_or_default();
 
             // Tray icon — the app keeps scanning after the window is closed.
@@ -201,7 +202,7 @@ fn main() {
                         }
                     }
                     "quit" => {
-                        let _ = scanner::stop(app.state::<AppState>().inner().clone());
+                        let _ = scanner::stop(app.state::<Arc<AppState>>().inner().clone());
                         std::process::exit(0);
                     }
                     _ => {}

@@ -1,7 +1,6 @@
 //! Infinite, never-repeating background scan engine.
 
 use rand::Rng;
-use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -316,7 +315,7 @@ async fn worker_loop(
             if !state
                 .seen
                 .lock()
-                .map(|mut set| set.insert(fingerprint))
+                .map(|mut set| set.insert(fingerprint.clone()))
                 .unwrap_or(false)
             {
                 continue;
