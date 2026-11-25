@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
-pub const COINS: [&str; 14] = [
+pub const COINS: [&str; 13] = [
     "BTC", "ETH", "LTC", "DOGE", "BCH", "MATIC", "BSC", "ARB", "OPT", "BASE", "AVAX",
     "SOL", "TON",
 ];

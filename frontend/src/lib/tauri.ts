@@ -261,8 +261,8 @@ async function mockInvoke<T>(cmd: string, args: Record<string, unknown> = {}): P
     }
     case 'check_for_updates': return result({
       available: false,
-      version: '0.6.4',
-      current_version: '0.6.4',
+      version: '0.6.5',
+      current_version: '0.6.5',
       notes: '',
       url: '',
       asset_name: '',
