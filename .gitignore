@@ -1,0 +1,15 @@
+# Build output
+dist/
+*.zip.tmp
+
+# OS/editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Node (if tooling is added later)
+node_modules/
+npm-debug.log*

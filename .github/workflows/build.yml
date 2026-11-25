@@ -1,0 +1,189 @@
+name: Build Route 58
+
+on:
+  push:
+    branches:
+      - main
+      - 'arena/**'
+    tags:
+      - 'v*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Package Yandex Games build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate source layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          GAME_DIR="game/route7"
+          test -f "$GAME_DIR/index.html"
+          test -f "$GAME_DIR/game.js"
+          test -f "$GAME_DIR/story-data.js"
+          test -f "$GAME_DIR/style.css"
+          test -d "$GAME_DIR/assets"
+          test -d "$GAME_DIR/vendor"
+          test -f "$GAME_DIR/vendor/phaser.min.js"
+
+          # Yandex Games: filenames in the archive must not contain spaces or Cyrillic.
+          bad_names=0
+          while IFS= read -r -d '' f; do
+            rel="${f#$GAME_DIR/}"
+            if [[ "$rel" =~ [[:space:]] ]]; then
+              echo "::error file=$f::Filename contains whitespace: $rel"
+              bad_names=1
+            fi
+            if LC_ALL=C.UTF-8 printf '%s' "$rel" | grep -Pq '[\x{0400}-\x{04FF}]'; then
+              echo "::error file=$f::Filename contains Cyrillic: $rel"
+              bad_names=1
+            fi
+          done < <(find "$GAME_DIR" -mindepth 1 -print0)
+
+          if [[ "$bad_names" -ne 0 ]]; then
+            echo "Invalid filenames found; see errors above."
+            exit 1
+          fi
+
+          echo "Source layout OK."
+
+      - name: Build Yandex ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          GAME_DIR="game/route7"
+          OUT_DIR="dist"
+          ZIP_NAME="route58-yandex.zip"
+          mkdir -p "$OUT_DIR"
+
+          # Build from a clean staging dir so index.html is at archive root.
+          STAGE="$(mktemp -d)"
+          trap 'rm -rf "$STAGE"' EXIT
+          cp -a "$GAME_DIR"/. "$STAGE"/
+
+          # Ensure no stray OS/editor files leak into the package.
+          find "$STAGE" -name '.DS_Store' -delete
+          find "$STAGE" -name 'Thumbs.db' -delete
+
+          (cd "$STAGE" && zip -qr "../pkg.zip" .)
+          mv "$STAGE/../pkg.zip" "$OUT_DIR/$ZIP_NAME"
+
+          echo "ZIP created: $OUT_DIR/$ZIP_NAME"
+          ls -lh "$OUT_DIR/$ZIP_NAME"
+
+      - name: Validate ZIP package
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP="dist/route58-yandex.zip"
+          test -f "$ZIP"
+
+          echo "== ZIP contents =="
+          unzip -l "$ZIP"
+
+          # index.html must be at archive root (no leading folder).
+          if ! unzip -Z1 "$ZIP" | grep -qx 'index.html'; then
+            echo "::error::index.html must be at the root of the ZIP archive"
+            unzip -Z1 "$ZIP" | head -20
+            exit 1
+          fi
+
+          # Required files present at root.
+          for required in index.html game.js story-data.js style.css vendor/phaser.min.js vendor/PHASER-LICENSE.md; do
+            if ! unzip -Z1 "$ZIP" | grep -qx "$required"; then
+              echo "::error::Missing required file in ZIP: $required"
+              exit 1
+            fi
+          done
+
+          # Unpacked size must be <= 100 MB (Yandex Games requirement).
+          unpacked_bytes=$(unzip -l "$ZIP" | awk '/ files$/{print $1; exit}')
+          max_bytes=$((100 * 1024 * 1024))
+          echo "Unpacked size: ${unpacked_bytes} bytes (limit ${max_bytes})"
+          if [[ "$unpacked_bytes" -gt "$max_bytes" ]]; then
+            echo "::error::Unpacked ZIP exceeds 100 MB Yandex Games limit"
+            exit 1
+          fi
+
+          # No spaces/Cyrillic in archived names.
+          bad=0
+          while IFS= read -r name; do
+            [[ -z "$name" ]] && continue
+            if [[ "$name" =~ [[:space:]] ]]; then
+              echo "::error::Archived name contains whitespace: $name"
+              bad=1
+            fi
+            if LC_ALL=C.UTF-8 printf '%s' "$name" | grep -Pq '[\x{0400}-\x{04FF}]'; then
+              echo "::error::Archived name contains Cyrillic: $name"
+              bad=1
+            fi
+          done < <(unzip -Z1 "$ZIP")
+          if [[ "$bad" -ne 0 ]]; then
+            exit 1
+          fi
+
+          echo "ZIP validation passed."
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: route58-yandex
+          path: dist/route58-yandex.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload release bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: route58-release-bundle
+          path: |
+            dist/route58-yandex.zip
+            release/route58-metadata-ru-en.md
+            release/UPLOAD-README.md
+            release/route58-cover.png
+            release/route58-icon.png
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish GitHub Release
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download release bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: route58-release-bundle
+          path: release-bundle
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-bundle/dist/route58-yandex.zip
+            release-bundle/release/route58-cover.png
+            release-bundle/release/route58-icon.png
+            release-bundle/release/route58-metadata-ru-en.md
+            release-bundle/release/UPLOAD-README.md
+          generate_release_notes: true
+          fail_on_unmatched_files: true
